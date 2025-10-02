@@ -1,0 +1,18 @@
+[influxdb]
+url = "http://localhost:8086"
+database = "gnettrack"
+username = ""
+password = ""
+# Optional: organization for InfluxDB 2.x
+org = ""
+# Optional: token for InfluxDB 2.x (if empty, will use username/password)
+token = ""
+
+[logging]
+level = "info"
+
+[processing]
+# Batch size for processing records
+batch_size = 1000
+# Skip invalid records instead of failing
+skip_invalid = true
