@@ -1,0 +1,72 @@
+﻿2025-10-02T06:23:40.9909900Z ##[group]Run actions/checkout@v4
+2025-10-02T06:23:40.9910690Z with:
+2025-10-02T06:23:40.9911180Z   repository: shunrin824/gnt2influx
+2025-10-02T06:23:40.9912000Z   token: ***
+2025-10-02T06:23:40.9912460Z   ssh-strict: true
+2025-10-02T06:23:40.9912950Z   ssh-user: git
+2025-10-02T06:23:40.9913460Z   persist-credentials: true
+2025-10-02T06:23:40.9914050Z   clean: true
+2025-10-02T06:23:40.9914580Z   sparse-checkout-cone-mode: true
+2025-10-02T06:23:40.9915220Z   fetch-depth: 1
+2025-10-02T06:23:40.9915710Z   fetch-tags: false
+2025-10-02T06:23:40.9916220Z   show-progress: true
+2025-10-02T06:23:40.9916870Z   lfs: false
+2025-10-02T06:23:40.9917550Z   submodules: false
+2025-10-02T06:23:40.9918310Z   set-safe-directory: true
+2025-10-02T06:23:40.9919260Z env:
+2025-10-02T06:23:40.9919740Z   CARGO_TERM_COLOR: always
+2025-10-02T06:23:40.9920280Z ##[endgroup]
+2025-10-02T06:23:41.2653680Z Syncing repository: shunrin824/gnt2influx
+2025-10-02T06:23:41.2655800Z ##[group]Getting Git version info
+2025-10-02T06:23:41.2656810Z Working directory is '/Users/runner/work/gnt2influx/gnt2influx'
+2025-10-02T06:23:41.2658220Z [command]/opt/homebrew/bin/git version
+2025-10-02T06:23:41.3181010Z git version 2.50.1
+2025-10-02T06:23:41.3206480Z ##[endgroup]
+2025-10-02T06:23:41.3213190Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/4bc233cd-c02d-4b33-8baf-fba67d91b249/.gitconfig'
+2025-10-02T06:23:41.3223510Z Temporarily overriding HOME='/Users/runner/work/_temp/4bc233cd-c02d-4b33-8baf-fba67d91b249' before making global git config changes
+2025-10-02T06:23:41.3225610Z Adding repository directory to the temporary git global config as a safe directory
+2025-10-02T06:23:41.3227800Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/gnt2influx/gnt2influx
+2025-10-02T06:23:41.3312130Z Deleting the contents of '/Users/runner/work/gnt2influx/gnt2influx'
+2025-10-02T06:23:41.3314430Z ##[group]Initializing the repository
+2025-10-02T06:23:41.3317840Z [command]/opt/homebrew/bin/git init /Users/runner/work/gnt2influx/gnt2influx
+2025-10-02T06:23:41.3502070Z hint: Using 'master' as the name for the initial branch. This default branch name
+2025-10-02T06:23:41.3503960Z hint: is subject to change. To configure the initial branch name to use in all
+2025-10-02T06:23:41.3505270Z hint: of your new repositories, which will suppress this warning, call:
+2025-10-02T06:23:41.3506160Z hint:
+2025-10-02T06:23:41.3506770Z hint: 	git config --global init.defaultBranch <name>
+2025-10-02T06:23:41.3507500Z hint:
+2025-10-02T06:23:41.3508200Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2025-10-02T06:23:41.3509380Z hint: 'development'. The just-created branch can be renamed via this command:
+2025-10-02T06:23:41.3510300Z hint:
+2025-10-02T06:23:41.3510760Z hint: 	git branch -m <name>
+2025-10-02T06:23:41.3511300Z hint:
+2025-10-02T06:23:41.3512050Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2025-10-02T06:23:41.3513380Z Initialized empty Git repository in /Users/runner/work/gnt2influx/gnt2influx/.git/
+2025-10-02T06:23:41.3515810Z [command]/opt/homebrew/bin/git remote add origin https://github.com/shunrin824/gnt2influx
+2025-10-02T06:23:41.3573890Z ##[endgroup]
+2025-10-02T06:23:41.3574930Z ##[group]Disabling automatic garbage collection
+2025-10-02T06:23:41.3575850Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2025-10-02T06:23:41.3622760Z ##[endgroup]
+2025-10-02T06:23:41.3623640Z ##[group]Setting up auth
+2025-10-02T06:23:41.3626700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2025-10-02T06:23:41.3672620Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2025-10-02T06:23:41.5158700Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2025-10-02T06:23:41.5426330Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2025-10-02T06:23:41.6062330Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2025-10-02T06:23:41.6124080Z ##[endgroup]
+2025-10-02T06:23:41.6125290Z ##[group]Fetching the repository
+2025-10-02T06:23:41.6130320Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +3e66a8e9dcf2922cac496904b3d5a092fea76653:refs/remotes/origin/master
+2025-10-02T06:23:42.2541190Z From https://github.com/shunrin824/gnt2influx
+2025-10-02T06:23:42.2542540Z  * [new ref]         3e66a8e9dcf2922cac496904b3d5a092fea76653 -> origin/master
+2025-10-02T06:23:42.2607230Z ##[endgroup]
+2025-10-02T06:23:42.2608160Z ##[group]Determining the checkout info
+2025-10-02T06:23:42.2609210Z ##[endgroup]
+2025-10-02T06:23:42.2610430Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2025-10-02T06:23:42.2676450Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2025-10-02T06:23:42.2731250Z ##[group]Checking out the ref
+2025-10-02T06:23:42.2733550Z [command]/opt/homebrew/bin/git checkout --progress --force -B master refs/remotes/origin/master
+2025-10-02T06:23:42.2871480Z Reset branch 'master'
+2025-10-02T06:23:42.2974260Z branch 'master' set up to track 'origin/master'.
+2025-10-02T06:23:42.3194070Z ##[endgroup]
+2025-10-02T06:23:42.3196200Z [command]/opt/homebrew/bin/git log -1 --format=%H
+2025-10-02T06:23:42.3197400Z 3e66a8e9dcf2922cac496904b3d5a092fea76653

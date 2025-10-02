@@ -1,0 +1,31 @@
+﻿2025-10-02T06:23:39.7890163Z Current runner version: '2.328.0'
+2025-10-02T06:23:39.7914096Z ##[group]Runner Image Provisioner
+2025-10-02T06:23:39.7914891Z Hosted Compute Agent
+2025-10-02T06:23:39.7915398Z Version: 20250912.392
+2025-10-02T06:23:39.7916086Z Commit: d921fda672a98b64f4f82364647e2f10b2267d0b
+2025-10-02T06:23:39.7917031Z Build Date: 2025-09-12T15:23:14Z
+2025-10-02T06:23:39.7917584Z ##[endgroup]
+2025-10-02T06:23:39.7918205Z ##[group]Operating System
+2025-10-02T06:23:39.7918734Z Ubuntu
+2025-10-02T06:23:39.7919220Z 24.04.3
+2025-10-02T06:23:39.7919685Z LTS
+2025-10-02T06:23:39.7920154Z ##[endgroup]
+2025-10-02T06:23:39.7920607Z ##[group]Runner Image
+2025-10-02T06:23:39.7921216Z Image: ubuntu-24.04
+2025-10-02T06:23:39.7921763Z Version: 20250922.53.1
+2025-10-02T06:23:39.7922763Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20250922.53/images/ubuntu/Ubuntu2404-Readme.md
+2025-10-02T06:23:39.7924194Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20250922.53
+2025-10-02T06:23:39.7925383Z ##[endgroup]
+2025-10-02T06:23:39.7926843Z ##[group]GITHUB_TOKEN Permissions
+2025-10-02T06:23:39.7928964Z Contents: read
+2025-10-02T06:23:39.7929601Z Metadata: read
+2025-10-02T06:23:39.7930146Z Packages: read
+2025-10-02T06:23:39.7930616Z ##[endgroup]
+2025-10-02T06:23:39.7933269Z Secret source: Actions
+2025-10-02T06:23:39.7933969Z Prepare workflow directory
+2025-10-02T06:23:39.8318747Z Prepare all required actions
+2025-10-02T06:23:39.8356866Z Getting action download info
+2025-10-02T06:23:40.2204324Z Download action repository 'actions/checkout@v4' (SHA:08eba0b27e820071cde6df949e0beb9ba4906955)
+2025-10-02T06:23:40.6663320Z Download action repository 'dtolnay/rust-toolchain@stable' (SHA:5d458579430fc14a04a08a1e7d3694f545e91ce6)
+2025-10-02T06:23:40.8969465Z Download action repository 'actions/cache@v3' (SHA:6f8efc29b200d32929f49075959781ed54ec270c)
+2025-10-02T06:23:41.4641894Z Complete job name: Test (ubuntu-latest, stable)

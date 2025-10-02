@@ -1,0 +1,13 @@
+﻿2025-10-02T06:23:51.2823240Z ##[group]Run actions/cache@v3
+2025-10-02T06:23:51.2823522Z with:
+2025-10-02T06:23:51.2823700Z   path: ~/.cargo/git
+2025-10-02T06:23:51.2824104Z   key: Linux-cargo-index-ec3c6112cc8a5edfc9f2c1a3466b4b38ea0701746b086b761ada5a5a15ddadc8
+2025-10-02T06:23:51.2824540Z   enableCrossOsArchive: false
+2025-10-02T06:23:51.2824779Z   fail-on-cache-miss: false
+2025-10-02T06:23:51.2824999Z   lookup-only: false
+2025-10-02T06:23:51.2825182Z env:
+2025-10-02T06:23:51.2825358Z   CARGO_TERM_COLOR: always
+2025-10-02T06:23:51.2825579Z   CARGO_HOME: /home/runner/.cargo
+2025-10-02T06:23:51.2825815Z   CARGO_INCREMENTAL: 0
+2025-10-02T06:23:51.2826008Z ##[endgroup]
+2025-10-02T06:23:51.5122514Z Cache not found for input keys: Linux-cargo-index-ec3c6112cc8a5edfc9f2c1a3466b4b38ea0701746b086b761ada5a5a15ddadc8

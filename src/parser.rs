@@ -255,10 +255,10 @@ fn parse_timestamp(value: &str) -> Result<DateTime<Utc>> {
     }
 
     // Try parsing as Unix timestamp
-    if let Ok(timestamp) = value.parse::<i64>() {
-        if let Some(dt) = DateTime::from_timestamp(timestamp, 0) {
-            return Ok(dt);
-        }
+    if let Ok(timestamp) = value.parse::<i64>()
+        && let Some(dt) = DateTime::from_timestamp(timestamp, 0)
+    {
+        return Ok(dt);
     }
 
     Err(anyhow!("Unable to parse timestamp: {value}"))

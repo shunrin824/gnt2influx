@@ -1,0 +1,13 @@
+﻿2025-10-02T06:23:50.9552789Z ##[group]Run actions/cache@v3
+2025-10-02T06:23:50.9553121Z with:
+2025-10-02T06:23:50.9553344Z   path: ~/.cargo/registry
+2025-10-02T06:23:50.9553795Z   key: Linux-cargo-registry-ec3c6112cc8a5edfc9f2c1a3466b4b38ea0701746b086b761ada5a5a15ddadc8
+2025-10-02T06:23:50.9554290Z   enableCrossOsArchive: false
+2025-10-02T06:23:50.9554556Z   fail-on-cache-miss: false
+2025-10-02T06:23:50.9554809Z   lookup-only: false
+2025-10-02T06:23:50.9555034Z env:
+2025-10-02T06:23:50.9555232Z   CARGO_TERM_COLOR: always
+2025-10-02T06:23:50.9555497Z   CARGO_HOME: /home/runner/.cargo
+2025-10-02T06:23:50.9555764Z   CARGO_INCREMENTAL: 0
+2025-10-02T06:23:50.9555995Z ##[endgroup]
+2025-10-02T06:23:51.2073263Z Cache not found for input keys: Linux-cargo-registry-ec3c6112cc8a5edfc9f2c1a3466b4b38ea0701746b086b761ada5a5a15ddadc8
