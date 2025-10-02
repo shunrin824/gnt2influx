@@ -2,7 +2,7 @@ use crate::config::InfluxDbConfig;
 use crate::parser::GNetTrackRecord;
 use anyhow::{Result, anyhow};
 use influxdb::{Client, ReadQuery, Timestamp, WriteQuery};
-use log::{info, debug, error};
+use log::{debug, error, info};
 
 pub struct InfluxClient {
     client: Client,
@@ -42,30 +42,30 @@ impl InfluxClient {
 
     pub async fn test_connection(&self) -> Result<()> {
         let query = ReadQuery::new("SHOW DATABASES");
-        
+
         match self.client.query(query).await {
             Ok(_) => {
                 info!("Successfully connected to InfluxDB");
                 Ok(())
-            },
+            }
             Err(e) => {
-                error!("Failed to connect to InfluxDB: {}", e);
-                Err(anyhow!("Connection test failed: {}", e))
+                error!("Failed to connect to InfluxDB: {e}");
+                Err(anyhow!("Connection test failed: {e}"))
             }
         }
     }
 
     pub async fn create_database_if_not_exists(&self) -> Result<()> {
-        let query = ReadQuery::new(&format!("CREATE DATABASE \"{}\"", self.database));
-        
+        let query = ReadQuery::new(format!("CREATE DATABASE \"{}\"", self.database));
+
         match self.client.query(query).await {
             Ok(_) => {
                 info!("Database '{}' created or already exists", self.database);
                 Ok(())
-            },
+            }
             Err(e) => {
                 // Database might already exist, which is okay
-                debug!("Database creation result: {}", e);
+                debug!("Database creation result: {e}");
                 Ok(())
             }
         }
@@ -79,8 +79,9 @@ impl InfluxClient {
         let mut write_queries = Vec::new();
 
         for record in records {
-            let timestamp = Timestamp::Nanoseconds(record.timestamp.timestamp_nanos_opt().unwrap_or(0) as u128);
-            
+            let timestamp =
+                Timestamp::Nanoseconds(record.timestamp.timestamp_nanos_opt().unwrap_or(0) as u128);
+
             let mut write_query = WriteQuery::new(timestamp, "network_measurements")
                 .add_tag("measurement_type", "gnettrack");
 
@@ -154,27 +155,38 @@ impl InfluxClient {
             Ok(_) => {
                 info!("Successfully wrote {} records to InfluxDB", records.len());
                 Ok(())
-            },
+            }
             Err(e) => {
-                error!("Failed to write records to InfluxDB: {}", e);
-                Err(anyhow!("Write operation failed: {}", e))
+                error!("Failed to write records to InfluxDB: {e}");
+                Err(anyhow!("Write operation failed: {e}"))
             }
         }
     }
 
-    pub async fn write_records_batch(&self, records: &[GNetTrackRecord], batch_size: usize) -> Result<()> {
+    pub async fn write_records_batch(
+        &self,
+        records: &[GNetTrackRecord],
+        batch_size: usize,
+    ) -> Result<()> {
         if records.is_empty() {
             return Ok(());
         }
 
-        info!("Writing {} records in batches of {}", records.len(), batch_size);
+        info!(
+            "Writing {} records in batches of {}",
+            records.len(),
+            batch_size
+        );
 
         for (i, chunk) in records.chunks(batch_size).enumerate() {
             debug!("Writing batch {} with {} records", i + 1, chunk.len());
             self.write_records(chunk).await?;
         }
 
-        info!("Successfully wrote all {} records to InfluxDB", records.len());
+        info!(
+            "Successfully wrote all {} records to InfluxDB",
+            records.len()
+        );
         Ok(())
     }
 }

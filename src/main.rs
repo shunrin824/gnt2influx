@@ -1,15 +1,15 @@
 mod config;
-mod parser;
 mod influx_client;
+mod parser;
 
-use clap::{Arg, Command};
 use anyhow::Result;
-use log::{info, error, LevelFilter};
+use clap::{Arg, Command};
+use log::{LevelFilter, error, info};
 use std::path::Path;
 
 use crate::config::Config;
-use crate::parser::LogParser;
 use crate::influx_client::InfluxClient;
+use crate::parser::LogParser;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -23,7 +23,7 @@ async fn main() -> Result<()> {
                 .long("input")
                 .value_name("FILE")
                 .help("Path to G-NetTrack log file")
-                .required_unless_present("test-connection")
+                .required_unless_present("test-connection"),
         )
         .arg(
             Arg::new("config")
@@ -31,26 +31,26 @@ async fn main() -> Result<()> {
                 .long("config")
                 .value_name("FILE")
                 .help("Path to configuration file")
-                .default_value("config.toml")
+                .default_value("config.toml"),
         )
         .arg(
             Arg::new("test-connection")
                 .long("test-connection")
                 .help("Test InfluxDB connection without uploading data")
-                .action(clap::ArgAction::SetTrue)
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("dry-run")
                 .long("dry-run")
                 .help("Parse the log file but don't upload to InfluxDB")
-                .action(clap::ArgAction::SetTrue)
+                .action(clap::ArgAction::SetTrue),
         )
         .arg(
             Arg::new("verbose")
                 .short('v')
                 .long("verbose")
                 .help("Enable verbose logging")
-                .action(clap::ArgAction::SetTrue)
+                .action(clap::ArgAction::SetTrue),
         )
         .get_matches();
 
@@ -61,9 +61,7 @@ async fn main() -> Result<()> {
         LevelFilter::Info
     };
 
-    env_logger::Builder::new()
-        .filter_level(log_level)
-        .init();
+    env_logger::Builder::new().filter_level(log_level).init();
 
     // Load configuration
     let config_path = matches.get_one::<String>("config").unwrap();
@@ -109,13 +107,13 @@ async fn main() -> Result<()> {
             std::process::exit(1);
         }
     };
-    
+
     if !Path::new(input_file).exists() {
-        error!("Input file does not exist: {}", input_file);
+        error!("Input file does not exist: {input_file}");
         std::process::exit(1);
     }
 
-    info!("Processing log file: {}", input_file);
+    info!("Processing log file: {input_file}");
 
     // Parse the log file
     let parser = LogParser::new(config.processing.batch_size, config.processing.skip_invalid);
@@ -130,20 +128,25 @@ async fn main() -> Result<()> {
 
     // Dry run - just parse and exit
     if matches.get_flag("dry-run") {
-        info!("Dry run completed. {} records would be uploaded.", records.len());
+        info!(
+            "Dry run completed. {} records would be uploaded.",
+            records.len()
+        );
         return Ok(());
     }
 
     // Test connection and create database
     info!("Testing InfluxDB connection...");
     influx_client.test_connection().await?;
-    
+
     info!("Creating database if it doesn't exist...");
     influx_client.create_database_if_not_exists().await?;
 
     // Upload records to InfluxDB
     info!("Uploading {} records to InfluxDB...", records.len());
-    influx_client.write_records_batch(&records, config.processing.batch_size).await?;
+    influx_client
+        .write_records_batch(&records, config.processing.batch_size)
+        .await?;
 
     info!("Successfully completed processing!");
     Ok(())

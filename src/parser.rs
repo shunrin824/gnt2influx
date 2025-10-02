@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Utc, NaiveDateTime};
 use anyhow::{Result, anyhow};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use csv::ReaderBuilder;
+use log::{debug, warn};
+use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::io::BufReader;
-use log::{debug, warn};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GNetTrackRecord {
@@ -31,7 +31,10 @@ pub struct GNetTrackRecord {
 }
 
 impl GNetTrackRecord {
-    pub fn from_csv_record(record: &csv::StringRecord, headers: &csv::StringRecord) -> Result<Self> {
+    pub fn from_csv_record(
+        record: &csv::StringRecord,
+        headers: &csv::StringRecord,
+    ) -> Result<Self> {
         let mut timestamp = Utc::now();
         let mut longitude = None;
         let mut latitude = None;
@@ -56,71 +59,71 @@ impl GNetTrackRecord {
         for (i, value) in record.iter().enumerate() {
             if let Some(header) = headers.get(i) {
                 let header_lower = header.to_lowercase();
-                
+
                 match header_lower.as_str() {
                     "timestamp" | "time" => {
                         timestamp = parse_timestamp(value)?;
-                    },
+                    }
                     "longitude" | "lon" => {
                         longitude = parse_float_optional(value);
-                    },
+                    }
                     "latitude" | "lat" => {
                         latitude = parse_float_optional(value);
-                    },
+                    }
                     "speed" => {
                         speed = parse_float_optional(value);
-                    },
+                    }
                     "operator" | "operator_name" => {
                         operator_name = Some(value.to_string());
-                    },
+                    }
                     "mcc-mnc" | "operator_code" => {
                         operator_code = Some(value.to_string());
-                    },
+                    }
                     "cgi" => {
                         cgi = Some(value.to_string());
-                    },
+                    }
                     "cellname" => {
                         cellname = Some(value.to_string());
-                    },
+                    }
                     "node" | "rnc" | "enodeb" => {
                         node = Some(value.to_string());
-                    },
+                    }
                     "cellid" | "cell_id" => {
                         cell_id = Some(value.to_string());
-                    },
+                    }
                     "lac" => {
                         lac = Some(value.to_string());
-                    },
+                    }
                     "networktech" | "network_tech" | "tech" => {
                         network_tech = Some(value.to_string());
-                    },
+                    }
                     "networkmode" | "network_mode" | "mode" => {
                         network_mode = Some(value.to_string());
-                    },
+                    }
                     "level" | "rsrp" | "rscp" | "rxlevel" => {
                         level = parse_float_optional(value);
-                    },
+                    }
                     "qual" | "rsrq" | "ecno" | "rxqual" => {
                         qual = parse_float_optional(value);
-                    },
+                    }
                     "snr" => {
                         snr = parse_float_optional(value);
-                    },
+                    }
                     "cqi" => {
                         cqi = parse_float_optional(value);
-                    },
+                    }
                     "arfcn" => {
                         arfcn = Some(value.to_string());
-                    },
+                    }
                     "dl_bitrate" | "downlink_bitrate" => {
                         dl_bitrate = parse_float_optional(value);
-                    },
+                    }
                     "ul_bitrate" | "uplink_bitrate" => {
                         ul_bitrate = parse_float_optional(value);
-                    },
+                    }
                     _ => {
                         // Ignore unknown columns
-                        debug!("Unknown column: {}", header);
+                        debug!("Unknown column: {header}");
                     }
                 }
             }
@@ -152,25 +155,21 @@ impl GNetTrackRecord {
 }
 
 pub struct LogParser {
-    batch_size: usize,
     skip_invalid: bool,
 }
 
 impl LogParser {
-    pub fn new(batch_size: usize, skip_invalid: bool) -> Self {
-        Self {
-            batch_size,
-            skip_invalid,
-        }
+    pub fn new(_batch_size: usize, skip_invalid: bool) -> Self {
+        Self { skip_invalid }
     }
 
     pub fn parse_file(&self, file_path: &str) -> Result<Vec<GNetTrackRecord>> {
         let file = File::open(file_path)?;
         let reader = BufReader::new(file);
-        
+
         // Try to determine the delimiter (tab or comma)
         let delimiter = self.detect_delimiter(file_path)?;
-        
+
         let mut csv_reader = ReaderBuilder::new()
             .delimiter(delimiter)
             .has_headers(true)
@@ -182,18 +181,20 @@ impl LogParser {
 
         for (line_num, result) in csv_reader.records().enumerate() {
             match result {
-                Ok(record) => {
-                    match GNetTrackRecord::from_csv_record(&record, &headers) {
-                        Ok(parsed_record) => {
-                            records.push(parsed_record);
-                        },
-                        Err(e) => {
-                            error_count += 1;
-                            if self.skip_invalid {
-                                warn!("Skipping invalid record at line {}: {}", line_num + 2, e);
-                            } else {
-                                return Err(anyhow!("Error parsing record at line {}: {}", line_num + 2, e));
-                            }
+                Ok(record) => match GNetTrackRecord::from_csv_record(&record, &headers) {
+                    Ok(parsed_record) => {
+                        records.push(parsed_record);
+                    }
+                    Err(e) => {
+                        error_count += 1;
+                        if self.skip_invalid {
+                            warn!("Skipping invalid record at line {}: {}", line_num + 2, e);
+                        } else {
+                            return Err(anyhow!(
+                                "Error parsing record at line {}: {}",
+                                line_num + 2,
+                                e
+                            ));
                         }
                     }
                 },
@@ -209,7 +210,7 @@ impl LogParser {
         }
 
         if error_count > 0 {
-            warn!("Encountered {} errors while parsing file", error_count);
+            warn!("Encountered {error_count} errors while parsing file");
         }
 
         Ok(records)
@@ -219,10 +220,10 @@ impl LogParser {
         let file = File::open(file_path)?;
         let mut reader = BufReader::new(file);
         let mut line = String::new();
-        
+
         use std::io::BufRead;
         reader.read_line(&mut line)?;
-        
+
         if line.contains('\t') {
             Ok(b'\t')
         } else {
@@ -260,7 +261,7 @@ fn parse_timestamp(value: &str) -> Result<DateTime<Utc>> {
         }
     }
 
-    Err(anyhow!("Unable to parse timestamp: {}", value))
+    Err(anyhow!("Unable to parse timestamp: {value}"))
 }
 
 fn parse_float_optional(value: &str) -> Option<f64> {
