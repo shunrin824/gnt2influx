@@ -1,5 +1,0 @@
-2025-10-02T06:11:02.2480000Z Requested labels: macos-latest
-2025-10-02T06:11:02.2480000Z Job defined at: shunrin824/gnt2influx/.github/workflows/ci.yml@refs/heads/master
-2025-10-02T06:11:02.2480000Z Waiting for a runner to pick up this job...
-2025-10-02T06:11:03.2350000Z Job is waiting for a hosted runner to come online.
-2025-10-02T06:11:03.2350000Z Job is about to start running on the hosted runner: GitHub Actions 1000000033
