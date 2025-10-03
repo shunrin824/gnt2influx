@@ -37,9 +37,7 @@ impl KmlParser {
                         current_placemark = PlacemarkData::new();
                     }
                     b"Data" => {
-                        if in_placemark
-                            && let Ok(Some(name_attr)) = e.try_get_attribute("name")
-                        {
+                        if in_placemark && let Ok(Some(name_attr)) = e.try_get_attribute("name") {
                             let name_str = String::from_utf8_lossy(&name_attr.value);
                             let mut data_buf = Vec::new();
                             let value = self.read_data_value(&mut reader, &mut data_buf)?;
