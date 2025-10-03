@@ -432,33 +432,51 @@ curl -X POST -H "Content-Type: application/json" -d '{
 
 ### トラブルシューティング
 
-#### クエリエラーが発生する場合
+#### "No data" が表示される場合
 
-**InfluxQL (InfluxDB 1.x) でのエラー:**
+**重要:** 現在のgnt2influxツールはInfluxDB 1.x専用に設計されており、InfluxDB 2.x/Fluxには直接対応していません。
+
+**推奨解決策:**
+
+1. **InfluxDB 1.x + InfluxQL の使用（推奨）**:
+   ```bash
+   # InfluxDB 1.x を起動
+   docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8
+   
+   # データをアップロード
+   ./gnt2influx -i your_data.kml
+   
+   # Grafanaデータソース設定: Query Language = InfluxQL
+   # Query Builder を使用
+   ```
+
+2. **InfluxDB 2.x を使用したい場合**:
+   - gnt2influxツールの改修が必要
+   - または、InfluxDB 1.x互換性モードを使用
+   - データを一度InfluxDB 1.xに書き込んでから、InfluxDB 2.xに移行
+
+**クエリエラーが発生する場合（InfluxQL）:**
 
 エラー「invalid statement: ,」が発生する場合：
 - Query Builder を使用してください（Raw Query Mode は避ける）
 - GUIでフィールドを選択する方式が確実です
 
-**Flux (InfluxDB 2.x) でのエラー:**
+**Flux を使いたい場合の対処法:**
 
-Fluxクエリでエラーが発生する場合：
-1. **データソース設定を確認**:
-   - Query Language が「Flux」になっているか
-   - Organization、Token、Default Bucket が正しく設定されているか
-
-2. **基本的なFluxクエリでテスト**:
+1. **データが存在するかテスト**:
    ```flux
-   from(bucket: "gnettrack")
-     |> range(start: -24h)
-     |> filter(fn: (r) => r._measurement == "network_measurements")
-     |> limit(n: 10)
+   buckets() |> yield()
    ```
 
-3. **よくあるFluxエラー**:
-   - `bucket not found`: バケット名が間違っている
-   - `unauthorized`: トークンまたは権限の問題
-   - `syntax error`: Fluxクエリの構文ミス
+2. **測定値を確認**:
+   ```flux
+   import "influxdata/influxdb/schema"
+   schema.measurements(bucket: "your_bucket_name")
+   ```
+
+3. **gnt2influxツールの制限**:
+   - 現在のバージョンはInfluxDB 2.x APIに対応していません
+   - InfluxDB 1.xを使用することを強く推奨します
 
 #### その他の一般的な問題
 
