@@ -1,5 +1,6 @@
 mod config;
 mod influx_client;
+mod kml_parser;
 mod parser;
 
 use anyhow::Result;
@@ -10,6 +11,7 @@ use std::path::Path;
 use crate::config::Config;
 use crate::influx_client::InfluxClient;
 use crate::parser::LogParser;
+use crate::kml_parser::KmlParser;
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -115,9 +117,14 @@ async fn main() -> Result<()> {
 
     info!("Processing log file: {input_file}");
 
-    // Parse the log file
-    let parser = LogParser::new(config.processing.batch_size, config.processing.skip_invalid);
-    let records = parser.parse_file(input_file)?;
+    // Parse the log file - detect format by extension
+    let records = if input_file.to_lowercase().ends_with(".kml") {
+        let kml_parser = KmlParser::new(config.processing.skip_invalid);
+        kml_parser.parse_file(input_file)?
+    } else {
+        let parser = LogParser::new(config.processing.batch_size, config.processing.skip_invalid);
+        parser.parse_file(input_file)?
+    };
 
     info!("Successfully parsed {} records", records.len());
 
