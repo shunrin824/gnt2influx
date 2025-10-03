@@ -177,7 +177,7 @@ async fn main() -> Result<()> {
                 config.influxdb.url
             );
             info!(
-                "You can start InfluxDB with Docker: docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8"
+                "You can start InfluxDB 2.x with Docker: docker run -d --name influxdb2 -p 8086:8086 -e DOCKER_INFLUXDB_INIT_MODE=setup -e DOCKER_INFLUXDB_INIT_USERNAME=admin -e DOCKER_INFLUXDB_INIT_PASSWORD=password123 -e DOCKER_INFLUXDB_INIT_ORG=my-org -e DOCKER_INFLUXDB_INIT_BUCKET=gnettrack -e DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token influxdb:2.7"
             );
             return Err(e);
         }

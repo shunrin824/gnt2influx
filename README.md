@@ -6,7 +6,7 @@ G-NetTrack Liteのログデータを解析し、InfluxDBに変換・転送する
 
 - G-NetTrack Liteのログファイル（テキスト形式）を解析
 - KMLファイル（Google Earth形式）を解析
-- InfluxDB 1.x および 2.x に対応
+- InfluxDB 2.x に完全対応（1.x との下位互換性も維持）
 - バッチ処理による効率的なデータ転送
 - エラー処理とスキップ機能
 - macOS および Linux 対応
@@ -71,9 +71,9 @@ url = "http://localhost:8086"
 database = "gnettrack"
 username = ""
 password = ""
-# InfluxDB 2.x用（オプション）
-org = ""
-token = ""
+# InfluxDB 2.x用（推奨）
+org = "my-org"
+token = "my-super-secret-auth-token"
 
 [logging]
 level = "info"
@@ -85,17 +85,7 @@ batch_size = 1000
 skip_invalid = true
 ```
 
-### InfluxDB 1.x の設定
-
-```toml
-[influxdb]
-url = "http://localhost:8086"
-database = "gnettrack"
-username = "your_username"
-password = "your_password"
-```
-
-### InfluxDB 2.x の設定
+### InfluxDB 2.x の設定（推奨）
 
 ```toml
 [influxdb]
@@ -104,6 +94,28 @@ database = "gnettrack"
 org = "your_organization"
 token = "your_api_token"
 ```
+
+### InfluxDB 1.x の設定（下位互換性）
+
+```toml
+[influxdb]
+url = "http://localhost:8086"
+database = "gnettrack"
+username = "your_username"
+password = "your_password"
+# org と token を空にすると自動的に 1.x モードになります
+org = ""
+token = ""
+```
+
+### バージョン自動検出
+
+gnt2influxは設定ファイルの内容に基づいて、InfluxDBのバージョンを自動的に検出します：
+
+- **InfluxDB 2.x モード**: `org` と `token` フィールドが設定されている場合
+- **InfluxDB 1.x モード**: `org` と `token` が空、または `username` と `password` が設定されている場合
+
+この仕組みにより、単一のツールで両方のバージョンに対応しており、ユーザーは設定ファイルを変更するだけで簡単にバージョンを切り替えることができます。
 
 ## G-NetTrack ログ形式
 
@@ -182,7 +194,18 @@ InfluxDBへの接続でエラーが発生する場合：
 
 1. InfluxDBサービスが起動していることを確認
    ```bash
-   # Dockerで起動する場合
+   # InfluxDB 2.x の起動（推奨）
+   docker run -d --name influxdb2 \
+     -p 8086:8086 \
+     -e DOCKER_INFLUXDB_INIT_MODE=setup \
+     -e DOCKER_INFLUXDB_INIT_USERNAME=admin \
+     -e DOCKER_INFLUXDB_INIT_PASSWORD=password123 \
+     -e DOCKER_INFLUXDB_INIT_ORG=my-org \
+     -e DOCKER_INFLUXDB_INIT_BUCKET=gnettrack \
+     -e DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token \
+     influxdb:2.7
+   
+   # または InfluxDB 1.x（下位互換性）
    docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8
    ```
 2. 設定ファイルのURL、ユーザー名、パスワードを確認
@@ -230,7 +253,7 @@ docker run -d --name influxdb \
   influxdb:1.8
 ```
 
-**InfluxDB 2.x を使用する場合:**
+**InfluxDB 2.x を使用する場合（推奨）:**
 ```bash
 # InfluxDB 2.x を起動
 docker run -d --name influxdb2 \
@@ -434,26 +457,43 @@ curl -X POST -H "Content-Type: application/json" -d '{
 
 #### "No data" が表示される場合
 
-**重要:** 現在のgnt2influxツールはInfluxDB 1.x専用に設計されており、InfluxDB 2.x/Fluxには直接対応していません。
+gnt2influxツールは現在InfluxDB 2.xに完全対応しており、以下の方法で問題を解決できます：
 
 **推奨解決策:**
 
-1. **InfluxDB 1.x + InfluxQL の使用（推奨）**:
+1. **InfluxDB 2.x + Flux の使用（推奨）**:
+   ```bash
+   # InfluxDB 2.x を起動
+   docker run -d --name influxdb2 \
+     -p 8086:8086 \
+     -e DOCKER_INFLUXDB_INIT_MODE=setup \
+     -e DOCKER_INFLUXDB_INIT_USERNAME=admin \
+     -e DOCKER_INFLUXDB_INIT_PASSWORD=password123 \
+     -e DOCKER_INFLUXDB_INIT_ORG=my-org \
+     -e DOCKER_INFLUXDB_INIT_BUCKET=gnettrack \
+     -e DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token \
+     influxdb:2.7
+   
+   # 設定ファイルで org と token を設定
+   # データをアップロード
+   ./gnt2influx -i your_data.kml
+   
+   # Grafanaデータソース設定: Query Language = Flux
+   # Raw Query Mode を使用
+   ```
+
+2. **InfluxDB 1.x を使用する場合（下位互換性）**:
    ```bash
    # InfluxDB 1.x を起動
    docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8
    
+   # 設定ファイルで org と token を空にする
    # データをアップロード
    ./gnt2influx -i your_data.kml
    
    # Grafanaデータソース設定: Query Language = InfluxQL
    # Query Builder を使用
    ```
-
-2. **InfluxDB 2.x を使用したい場合**:
-   - gnt2influxツールの改修が必要
-   - または、InfluxDB 1.x互換性モードを使用
-   - データを一度InfluxDB 1.xに書き込んでから、InfluxDB 2.xに移行
 
 **クエリエラーが発生する場合（InfluxQL）:**
 
@@ -474,9 +514,9 @@ curl -X POST -H "Content-Type: application/json" -d '{
    schema.measurements(bucket: "your_bucket_name")
    ```
 
-3. **gnt2influxツールの制限**:
-   - 現在のバージョンはInfluxDB 2.x APIに対応していません
-   - InfluxDB 1.xを使用することを強く推奨します
+3. **gnt2influxツールのバージョン検出**:
+   - ツールは設定ファイルに基づいて適切なInfluxDBバージョンを自動検出します
+   - 設定が正しいことを確認してください（org と token が設定されていれば 2.x モード）
 
 #### その他の一般的な問題
 

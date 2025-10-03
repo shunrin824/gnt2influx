@@ -1,71 +1,106 @@
 use crate::config::InfluxDbConfig;
 use crate::parser::GNetTrackRecord;
 use anyhow::{Result, anyhow};
-use influxdb::{Client, ReadQuery, Timestamp, WriteQuery};
+use chrono::{DateTime, Utc};
+use futures::stream;
+use influxdb::{Client as InfluxDB1Client, ReadQuery, Timestamp, WriteQuery};
+use influxdb2::{Client as InfluxDB2Client, models::DataPoint};
 use log::{debug, error, info};
 
-pub struct InfluxClient {
-    client: Client,
-    database: String,
+pub enum InfluxClient {
+    V1 {
+        client: InfluxDB1Client,
+        database: String,
+    },
+    V2 {
+        client: InfluxDB2Client,
+        #[allow(dead_code)]
+        org: String,
+        bucket: String,
+    },
 }
 
 impl InfluxClient {
     pub fn new(config: &InfluxDbConfig) -> Result<Self> {
-        let client = if let Some(token) = &config.token {
+        // Check if we should use InfluxDB 2.x (token and org are provided)
+        if let Some(token) = &config.token {
             if !token.is_empty() {
-                // InfluxDB 2.x with token
-                Client::new(&config.url, &config.database).with_token(token)
-            } else {
-                // InfluxDB 1.x with username/password
-                if !config.username.is_empty() {
-                    Client::new(&config.url, &config.database)
-                        .with_auth(&config.username, &config.password)
-                } else {
-                    Client::new(&config.url, &config.database)
+                if let Some(org) = &config.org {
+                    if !org.is_empty() {
+                        // InfluxDB 2.x
+                        let client = InfluxDB2Client::new(&config.url, org, token);
+                        return Ok(Self::V2 {
+                            client,
+                            org: org.clone(),
+                            bucket: config.database.clone(), // Use database as bucket name
+                        });
+                    }
                 }
             }
+        }
+
+        // InfluxDB 1.x fallback
+        let client = if !config.username.is_empty() {
+            InfluxDB1Client::new(&config.url, &config.database)
+                .with_auth(&config.username, &config.password)
         } else {
-            // InfluxDB 1.x with username/password
-            if !config.username.is_empty() {
-                Client::new(&config.url, &config.database)
-                    .with_auth(&config.username, &config.password)
-            } else {
-                Client::new(&config.url, &config.database)
-            }
+            InfluxDB1Client::new(&config.url, &config.database)
         };
 
-        Ok(Self {
+        Ok(Self::V1 {
             client,
             database: config.database.clone(),
         })
     }
 
     pub async fn test_connection(&self) -> Result<()> {
-        let query = ReadQuery::new("SHOW DATABASES");
-
-        match self.client.query(query).await {
-            Ok(_) => {
-                info!("Successfully connected to InfluxDB");
-                Ok(())
+        match self {
+            Self::V1 { client, .. } => {
+                let query = ReadQuery::new("SHOW DATABASES");
+                match client.query(query).await {
+                    Ok(_) => {
+                        info!("Successfully connected to InfluxDB 1.x");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        error!("Failed to connect to InfluxDB 1.x: {e}");
+                        Err(anyhow!("Connection test failed: {e}"))
+                    }
+                }
             }
-            Err(e) => {
-                error!("Failed to connect to InfluxDB: {e}");
-                Err(anyhow!("Connection test failed: {e}"))
-            }
+            Self::V2 { client, .. } => match client.health().await {
+                Ok(_) => {
+                    info!("Successfully connected to InfluxDB 2.x");
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Failed to connect to InfluxDB 2.x: {e}");
+                    Err(anyhow!("Connection test failed: {e}"))
+                }
+            },
         }
     }
 
     pub async fn create_database_if_not_exists(&self) -> Result<()> {
-        let query = ReadQuery::new(format!("CREATE DATABASE \"{}\"", self.database));
-
-        match self.client.query(query).await {
-            Ok(_) => {
-                info!("Database '{}' created or already exists", self.database);
-                Ok(())
+        match self {
+            Self::V1 { client, database } => {
+                let query = ReadQuery::new(format!("CREATE DATABASE \"{database}\""));
+                match client.query(query).await {
+                    Ok(_) => {
+                        info!("Database '{database}' created or already exists");
+                        Ok(())
+                    }
+                    Err(e) => {
+                        // Database might already exist, which is okay
+                        debug!("Database creation result: {e}");
+                        Ok(())
+                    }
+                }
             }
-            Err(e) => {
-                // Database might already exist, which is okay
-                debug!("Database creation result: {e}");
+            Self::V2 { bucket, .. } => {
+                // InfluxDB 2.x buckets are created via setup or API
+                // For now, assume bucket exists or will be created externally
+                info!("Using InfluxDB 2.x bucket: {bucket}");
                 Ok(())
             }
         }
@@ -118,6 +153,18 @@ impl InfluxClient {
             return Ok(());
         }
 
+        match self {
+            Self::V1 { client, database } => self.write_records_v1(client, database, records).await,
+            Self::V2 { client, bucket, .. } => self.write_records_v2(client, bucket, records).await,
+        }
+    }
+
+    async fn write_records_v1(
+        &self,
+        client: &InfluxDB1Client,
+        database: &str,
+        records: &[GNetTrackRecord],
+    ) -> Result<()> {
         let mut write_queries = Vec::new();
 
         for record in records {
@@ -190,27 +237,134 @@ impl InfluxClient {
                 write_query = write_query.add_field("arfcn", arfcn.clone());
             }
 
-            debug!("InfluxDB write query: {write_query:?}");
+            debug!("InfluxDB 1.x write query: {write_query:?}");
             write_queries.push(write_query);
         }
 
         info!(
-            "Attempting to write {} records to InfluxDB...",
+            "Attempting to write {} records to InfluxDB 1.x...",
             records.len()
         );
         debug!(
-            "Writing to measurement 'network_measurements' in database '{}'",
-            self.database
+            "Writing to measurement 'network_measurements' in database '{database}'"
         );
 
-        match self.client.query(write_queries).await {
+        match client.query(write_queries).await {
             Ok(_) => {
-                info!("Successfully wrote {} records to InfluxDB", records.len());
+                info!(
+                    "Successfully wrote {} records to InfluxDB 1.x",
+                    records.len()
+                );
                 Ok(())
             }
             Err(e) => {
-                error!("Failed to write records to InfluxDB: {e}");
-                debug!("Database: {}, URL: {:?}", self.database, self.client);
+                error!("Failed to write records to InfluxDB 1.x: {e}");
+                Err(anyhow!("Write operation failed: {e}"))
+            }
+        }
+    }
+
+    async fn write_records_v2(
+        &self,
+        client: &InfluxDB2Client,
+        bucket: &str,
+        records: &[GNetTrackRecord],
+    ) -> Result<()> {
+        let mut data_points = Vec::new();
+
+        for record in records {
+            let timestamp: DateTime<Utc> = record.timestamp;
+
+            let mut data_point = DataPoint::builder("network_measurements")
+                .timestamp(timestamp.timestamp_nanos_opt().unwrap_or(0))
+                .tag("measurement_type", "gnettrack");
+
+            // Add tags (indexed fields)
+            if let Some(ref operator_name) = record.operator_name {
+                data_point = data_point.tag("operator_name", operator_name);
+            }
+            if let Some(ref operator_code) = record.operator_code {
+                data_point = data_point.tag("operator_code", operator_code);
+            }
+            if let Some(ref cell_id) = record.cell_id {
+                data_point = data_point.tag("cell_id", cell_id);
+            }
+            if let Some(ref network_tech) = record.network_tech {
+                data_point = data_point.tag("network_tech", network_tech);
+            }
+            if let Some(ref network_mode) = record.network_mode {
+                data_point = data_point.tag("network_mode", network_mode);
+            }
+            if let Some(ref lac) = record.lac {
+                data_point = data_point.tag("lac", lac);
+            }
+
+            // Add numeric fields
+            if let Some(longitude) = record.longitude {
+                data_point = data_point.field("longitude", longitude);
+            }
+            if let Some(latitude) = record.latitude {
+                data_point = data_point.field("latitude", latitude);
+            }
+            if let Some(speed) = record.speed {
+                data_point = data_point.field("speed", speed);
+            }
+            if let Some(level) = record.level {
+                data_point = data_point.field("level", level);
+            }
+            if let Some(qual) = record.qual {
+                data_point = data_point.field("qual", qual);
+            }
+            if let Some(snr) = record.snr {
+                data_point = data_point.field("snr", snr);
+            }
+            if let Some(cqi) = record.cqi {
+                data_point = data_point.field("cqi", cqi);
+            }
+            if let Some(dl_bitrate) = record.dl_bitrate {
+                data_point = data_point.field("dl_bitrate", dl_bitrate);
+            }
+            if let Some(ul_bitrate) = record.ul_bitrate {
+                data_point = data_point.field("ul_bitrate", ul_bitrate);
+            }
+
+            // Add string fields
+            if let Some(ref cgi) = record.cgi {
+                data_point = data_point.field("cgi", cgi.as_str());
+            }
+            if let Some(ref cellname) = record.cellname {
+                data_point = data_point.field("cellname", cellname.as_str());
+            }
+            if let Some(ref node) = record.node {
+                data_point = data_point.field("node", node.as_str());
+            }
+            if let Some(ref arfcn) = record.arfcn {
+                data_point = data_point.field("arfcn", arfcn.as_str());
+            }
+
+            let built_point = data_point.build()?;
+            debug!("InfluxDB 2.x data point: {built_point:?}");
+            data_points.push(built_point);
+        }
+
+        info!(
+            "Attempting to write {} records to InfluxDB 2.x...",
+            records.len()
+        );
+        debug!(
+            "Writing to measurement 'network_measurements' in bucket '{bucket}'"
+        );
+
+        match client.write(bucket, stream::iter(data_points)).await {
+            Ok(_) => {
+                info!(
+                    "Successfully wrote {} records to InfluxDB 2.x",
+                    records.len()
+                );
+                Ok(())
+            }
+            Err(e) => {
+                error!("Failed to write records to InfluxDB 2.x: {e}");
                 Err(anyhow!("Write operation failed: {e}"))
             }
         }

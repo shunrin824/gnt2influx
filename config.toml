@@ -3,10 +3,12 @@ url = "http://localhost:8086"
 database = "gnettrack"
 username = ""
 password = ""
-# Optional: organization for InfluxDB 2.x
-org = ""
-# Optional: token for InfluxDB 2.x (if empty, will use username/password)
-token = ""
+# InfluxDB 2.x configuration (recommended)
+org = "my-org"
+token = "my-super-secret-auth-token"
+# InfluxDB 1.x configuration (legacy) - set org and token to "" to use 1.x mode
+# username = "your_username"
+# password = "your_password"
 
 [logging]
 level = "info"
