@@ -264,12 +264,28 @@ docker run -d --name grafana \
 1. 左メニューの「+」→「Dashboard」を選択
 2. 「Add panel」をクリック
 3. パネルタイプを「Geomap」に変更
-4. クエリエディタで以下のクエリを入力：
+4. クエリエディタで以下のように設定：
+   
+   **方法1: Raw Query Mode（上級者向け）**
+   - 「Toggle text edit mode」をクリックしてRaw Query Modeに切り替え
+   - 以下のクエリを入力：
    ```sql
    SELECT longitude, latitude, level, speed, operator_name, network_tech 
    FROM network_measurements 
-   WHERE $timeFilter
+   WHERE time > now() - 24h
    ```
+   
+   **方法2: Query Builder（推奨・初心者向け）**
+   - FROM: `network_measurements` を選択
+   - SELECT: 以下のフィールドを追加
+     - `field(longitude)`
+     - `field(latitude)` 
+     - `field(level)`
+     - `field(speed)`
+     - `field(operator_name)`
+     - `field(network_tech)`
+   - WHERE: 時間範囲は自動的に適用される
+
 5. 「Query Options」で「Format as」を「Table」に設定
 6. パネル設定で以下を調整：
    - **View**: 地図の中心座標（例：lat=35.7, lon=139.52）
@@ -326,7 +342,7 @@ curl -X POST -H "Content-Type: application/json" -d '{
       "title": "Signal Strength Map",
       "type": "geomap",
       "targets": [{
-        "query": "SELECT longitude, latitude, level, speed, operator_name, network_tech FROM network_measurements WHERE $timeFilter",
+        "query": "SELECT longitude, latitude, level, speed, operator_name, network_tech FROM network_measurements WHERE time > now() - 24h",
         "rawQuery": true,
         "resultFormat": "table"
       }]
