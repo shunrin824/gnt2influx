@@ -266,8 +266,8 @@ docker run -d --name grafana \
 3. パネルタイプを「Geomap」に変更
 4. クエリエディタで以下のクエリを入力：
    ```sql
-   SELECT "longitude", "latitude", "level", "speed", "operator_name", "network_tech" 
-   FROM "network_measurements" 
+   SELECT longitude, latitude, level, speed, operator_name, network_tech 
+   FROM network_measurements 
    WHERE $timeFilter
    ```
 5. 「Query Options」で「Format as」を「Table」に設定
@@ -326,7 +326,7 @@ curl -X POST -H "Content-Type: application/json" -d '{
       "title": "Signal Strength Map",
       "type": "geomap",
       "targets": [{
-        "query": "SELECT \"longitude\", \"latitude\", \"level\", \"speed\", \"operator_name\", \"network_tech\" FROM \"network_measurements\" WHERE $timeFilter",
+        "query": "SELECT longitude, latitude, level, speed, operator_name, network_tech FROM network_measurements WHERE $timeFilter",
         "rawQuery": true,
         "resultFormat": "table"
       }]
