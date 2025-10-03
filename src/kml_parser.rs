@@ -1,9 +1,9 @@
 use crate::parser::GNetTrackRecord;
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, Utc, NaiveDateTime};
+use chrono::{DateTime, NaiveDateTime, Utc};
 use log::{debug, warn};
-use quick_xml::events::Event;
 use quick_xml::Reader;
+use quick_xml::events::Event;
 use std::fs::File;
 use std::io::BufReader;
 
@@ -31,32 +31,30 @@ impl KmlParser {
 
         loop {
             match reader.read_event_into(&mut buf) {
-                Ok(Event::Start(ref e)) => {
-                    match e.name().as_ref() {
-                        b"Placemark" => {
-                            in_placemark = true;
-                            current_placemark = PlacemarkData::new();
-                        }
-                        b"Data" => {
-                            if in_placemark {
-                                if let Ok(Some(name_attr)) = e.try_get_attribute("name") {
-                                    let name_str = String::from_utf8_lossy(&name_attr.value);
-                                    let mut data_buf = Vec::new();
-                                    let value = self.read_data_value(&mut reader, &mut data_buf)?;
-                                    current_placemark.add_data(name_str.as_ref(), &value);
-                                }
-                            }
-                        }
-                        b"coordinates" => {
-                            if in_placemark {
-                                let mut coord_buf = Vec::new();
-                                let coords = self.read_text_content(&mut reader, &mut coord_buf)?;
-                                current_placemark.set_coordinates(&coords);
-                            }
-                        }
-                        _ => {}
+                Ok(Event::Start(ref e)) => match e.name().as_ref() {
+                    b"Placemark" => {
+                        in_placemark = true;
+                        current_placemark = PlacemarkData::new();
                     }
-                }
+                    b"Data" => {
+                        if in_placemark {
+                            if let Ok(Some(name_attr)) = e.try_get_attribute("name") {
+                                let name_str = String::from_utf8_lossy(&name_attr.value);
+                                let mut data_buf = Vec::new();
+                                let value = self.read_data_value(&mut reader, &mut data_buf)?;
+                                current_placemark.add_data(name_str.as_ref(), &value);
+                            }
+                        }
+                    }
+                    b"coordinates" => {
+                        if in_placemark {
+                            let mut coord_buf = Vec::new();
+                            let coords = self.read_text_content(&mut reader, &mut coord_buf)?;
+                            current_placemark.set_coordinates(&coords);
+                        }
+                    }
+                    _ => {}
+                },
                 Ok(Event::End(ref e)) => {
                     if e.name().as_ref() == b"Placemark" && in_placemark {
                         match current_placemark.to_record() {
@@ -97,7 +95,11 @@ impl KmlParser {
         Ok(records)
     }
 
-    fn read_data_value(&self, reader: &mut Reader<BufReader<File>>, buf: &mut Vec<u8>) -> Result<String> {
+    fn read_data_value(
+        &self,
+        reader: &mut Reader<BufReader<File>>,
+        buf: &mut Vec<u8>,
+    ) -> Result<String> {
         loop {
             buf.clear();
             match reader.read_event_into(buf) {
@@ -115,7 +117,11 @@ impl KmlParser {
         }
     }
 
-    fn read_text_content(&self, reader: &mut Reader<BufReader<File>>, buf: &mut Vec<u8>) -> Result<String> {
+    fn read_text_content(
+        &self,
+        reader: &mut Reader<BufReader<File>>,
+        buf: &mut Vec<u8>,
+    ) -> Result<String> {
         let mut content = String::new();
         loop {
             buf.clear();
@@ -213,11 +219,7 @@ impl PlacemarkData {
 
         // Parse altitude from ExtendedData (remove "m" suffix)
         let _altitude_parsed = if let Some(ref alt_str) = self.altitude {
-            alt_str
-                .replace("m", "")
-                .trim()
-                .parse::<f64>()
-                .ok()
+            alt_str.replace("m", "").trim().parse::<f64>().ok()
         } else {
             None
         };
@@ -250,7 +252,7 @@ impl PlacemarkData {
 fn parse_kml_timestamp(time_str: &str) -> Result<DateTime<Utc>> {
     // Expected format: "2025.10.03_10.20.09"
     let cleaned = time_str.replace('_', " ");
-    
+
     let formats = [
         "%Y.%m.%d %H.%M.%S",
         "%Y.%m.%d_%H.%M.%S",

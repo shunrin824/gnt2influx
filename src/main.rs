@@ -10,8 +10,8 @@ use std::path::Path;
 
 use crate::config::Config;
 use crate::influx_client::InfluxClient;
-use crate::parser::LogParser;
 use crate::kml_parser::KmlParser;
+use crate::parser::LogParser;
 
 #[tokio::main]
 async fn main() -> Result<()> {
