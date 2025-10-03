@@ -5,7 +5,7 @@ mod parser;
 
 use anyhow::Result;
 use clap::{Arg, Command};
-use log::{LevelFilter, error, info};
+use log::{LevelFilter, debug, error, info};
 use std::path::Path;
 
 use crate::config::Config;
@@ -133,27 +133,81 @@ async fn main() -> Result<()> {
         return Ok(());
     }
 
+    // Debug: print first few records to understand the data structure
+    if matches.get_flag("verbose") {
+        for (i, record) in records.iter().take(3).enumerate() {
+            debug!("Record {}: {:?}", i + 1, record);
+        }
+    }
+
     // Dry run - just parse and exit
     if matches.get_flag("dry-run") {
         info!(
             "Dry run completed. {} records would be uploaded.",
             records.len()
         );
+
+        // Show what InfluxDB queries would look like for first few records
+        if matches.get_flag("verbose") {
+            info!("Sample InfluxDB line protocol format (dry run):");
+            let influx_client = InfluxClient::new(&config.influxdb)?;
+            // Take first 3 records for debugging
+            let sample_records: Vec<_> = records.iter().take(3).cloned().collect();
+            match influx_client.format_records_for_influx(&sample_records) {
+                Ok(formatted_lines) => {
+                    for (i, line) in formatted_lines.iter().enumerate() {
+                        info!("InfluxDB line {}: {}", i + 1, line);
+                    }
+                }
+                Err(e) => debug!("Failed to format records for InfluxDB: {e}"),
+            }
+        }
+
         return Ok(());
     }
 
     // Test connection and create database
     info!("Testing InfluxDB connection...");
-    influx_client.test_connection().await?;
+    match influx_client.test_connection().await {
+        Ok(_) => info!("InfluxDB connection successful"),
+        Err(e) => {
+            error!("InfluxDB connection failed: {e}");
+            info!(
+                "Please ensure InfluxDB is running on {}",
+                config.influxdb.url
+            );
+            info!(
+                "You can start InfluxDB with Docker: docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8"
+            );
+            return Err(e);
+        }
+    }
 
     info!("Creating database if it doesn't exist...");
     influx_client.create_database_if_not_exists().await?;
 
     // Upload records to InfluxDB
     info!("Uploading {} records to InfluxDB...", records.len());
-    influx_client
+    match influx_client
         .write_records_batch(&records, config.processing.batch_size)
-        .await?;
+        .await
+    {
+        Ok(_) => {
+            info!(
+                "Successfully uploaded {} records to InfluxDB!",
+                records.len()
+            );
+            info!(
+                "Data is now available in database '{}' on {}",
+                config.influxdb.database, config.influxdb.url
+            );
+            info!("You can query the data with: SELECT * FROM network_measurements LIMIT 10");
+        }
+        Err(e) => {
+            error!("Failed to upload records to InfluxDB: {e}");
+            return Err(e);
+        }
+    }
 
     info!("Successfully completed processing!");
     Ok(())

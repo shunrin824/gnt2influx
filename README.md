@@ -5,6 +5,7 @@ G-NetTrack Liteのログデータを解析し、InfluxDBに変換・転送する
 ## 機能
 
 - G-NetTrack Liteのログファイル（テキスト形式）を解析
+- KMLファイル（Google Earth形式）を解析
 - InfluxDB 1.x および 2.x に対応
 - バッチ処理による効率的なデータ転送
 - エラー処理とスキップ機能
@@ -29,7 +30,11 @@ cargo build --release
 ### 基本的な使用方法
 
 ```bash
+# テキストログファイルの場合
 ./gnt2influx -i /path/to/logfile.txt
+
+# KMLファイルの場合
+./gnt2influx -i /path/to/data.kml
 ```
 
 ### 設定ファイルを指定
@@ -176,15 +181,28 @@ OPTIONS:
 InfluxDBへの接続でエラーが発生する場合：
 
 1. InfluxDBサービスが起動していることを確認
+   ```bash
+   # Dockerで起動する場合
+   docker run -d --name influxdb -p 8086:8086 -e INFLUXDB_DB=gnettrack influxdb:1.8
+   ```
 2. 設定ファイルのURL、ユーザー名、パスワードを確認
 3. ネットワーク接続を確認
+4. 接続テストを実行
+   ```bash
+   ./gnt2influx --test-connection
+   ```
 
 ### ログ解析エラー
 
 ログファイルの解析でエラーが発生する場合：
 
-1. ファイル形式がタブ区切りまたはカンマ区切りであることを確認
+1. ファイル形式を確認
+   - テキストファイル：タブ区切りまたはカンマ区切り
+   - KMLファイル：Google Earth形式のXML
 2. `--dry-run`オプションで解析をテスト
+   ```bash
+   ./gnt2influx -i your_file.kml --dry-run -v
+   ```
 3. `skip_invalid = true`設定で無効レコードをスキップ
 
 ## ライセンス
@@ -196,6 +214,42 @@ MIT License
 Issue報告やプルリクエストを歓迎します。
 
 ## 開発
+
+### InfluxDBの起動方法
+
+#### Dockerを使用する場合（推奨）
+
+```bash
+# InfluxDB 1.8を起動
+docker run -d --name influxdb \
+  -p 8086:8086 \
+  -e INFLUXDB_DB=gnettrack \
+  influxdb:1.8
+
+# データの確認
+curl -G 'http://localhost:8086/query?pretty=true' \
+  --data-urlencode "db=gnettrack" \
+  --data-urlencode "q=SELECT * FROM network_measurements LIMIT 10"
+```
+
+#### InfluxDBクライアントでの確認
+
+```bash
+# InfluxDBクライアントに接続
+influx -host localhost -port 8086
+
+# データベースを選択
+USE gnettrack
+
+# データを確認
+SELECT * FROM network_measurements LIMIT 10;
+
+# 特定の時間範囲のデータを確認
+SELECT * FROM network_measurements WHERE time > now() - 1h;
+
+# オペレーター別の統計
+SELECT COUNT(*) FROM network_measurements GROUP BY operator_name;
+```
 
 ### 必要な環境
 

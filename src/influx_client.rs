@@ -71,6 +71,48 @@ impl InfluxClient {
         }
     }
 
+    pub fn format_records_for_influx(&self, records: &[GNetTrackRecord]) -> Result<Vec<String>> {
+        let mut formatted_queries = Vec::new();
+
+        for record in records {
+            let timestamp = record.timestamp.timestamp_nanos_opt().unwrap_or(0);
+
+            let mut line = String::from("network_measurements,measurement_type=gnettrack");
+
+            // Add tags
+            if let Some(ref operator_name) = record.operator_name {
+                line.push_str(&format!(",operator_name={operator_name}"));
+            }
+            if let Some(ref network_tech) = record.network_tech {
+                line.push_str(&format!(",network_tech={network_tech}"));
+            }
+
+            line.push(' ');
+
+            // Add fields
+            let mut fields = Vec::new();
+            if let Some(longitude) = record.longitude {
+                fields.push(format!("longitude={longitude}"));
+            }
+            if let Some(latitude) = record.latitude {
+                fields.push(format!("latitude={latitude}"));
+            }
+            if let Some(speed) = record.speed {
+                fields.push(format!("speed={speed}"));
+            }
+            if let Some(level) = record.level {
+                fields.push(format!("level={level}"));
+            }
+
+            line.push_str(&fields.join(","));
+            line.push_str(&format!(" {timestamp}"));
+
+            formatted_queries.push(line);
+        }
+
+        Ok(formatted_queries)
+    }
+
     pub async fn write_records(&self, records: &[GNetTrackRecord]) -> Result<()> {
         if records.is_empty() {
             return Ok(());
@@ -148,8 +190,18 @@ impl InfluxClient {
                 write_query = write_query.add_field("arfcn", arfcn.clone());
             }
 
+            debug!("InfluxDB write query: {write_query:?}");
             write_queries.push(write_query);
         }
+
+        info!(
+            "Attempting to write {} records to InfluxDB...",
+            records.len()
+        );
+        debug!(
+            "Writing to measurement 'network_measurements' in database '{}'",
+            self.database
+        );
 
         match self.client.query(write_queries).await {
             Ok(_) => {
@@ -158,6 +210,7 @@ impl InfluxClient {
             }
             Err(e) => {
                 error!("Failed to write records to InfluxDB: {e}");
+                debug!("Database: {}, URL: {:?}", self.database, self.client);
                 Err(anyhow!("Write operation failed: {e}"))
             }
         }
