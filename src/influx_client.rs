@@ -23,20 +23,18 @@ pub enum InfluxClient {
 impl InfluxClient {
     pub fn new(config: &InfluxDbConfig) -> Result<Self> {
         // Check if we should use InfluxDB 2.x (token and org are provided)
-        if let Some(token) = &config.token {
-            if !token.is_empty() {
-                if let Some(org) = &config.org {
-                    if !org.is_empty() {
-                        // InfluxDB 2.x
-                        let client = InfluxDB2Client::new(&config.url, org, token);
-                        return Ok(Self::V2 {
-                            client,
-                            org: org.clone(),
-                            bucket: config.database.clone(), // Use database as bucket name
-                        });
-                    }
-                }
-            }
+        if let Some(token) = &config.token
+            && !token.is_empty()
+            && let Some(org) = &config.org
+            && !org.is_empty()
+        {
+            // InfluxDB 2.x
+            let client = InfluxDB2Client::new(&config.url, org, token);
+            return Ok(Self::V2 {
+                client,
+                org: org.clone(),
+                bucket: config.database.clone(), // Use database as bucket name
+            });
         }
 
         // InfluxDB 1.x fallback
