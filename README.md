@@ -264,33 +264,27 @@ docker run -d --name grafana \
 1. 左メニューの「+」→「Dashboard」を選択
 2. 「Add panel」をクリック
 3. パネルタイプを「Geomap」に変更
-4. クエリエディタで以下のように設定：
+4. **Query Builder を使用（推奨）**:
    
-   **方法1: Raw Query Mode（上級者向け）**
-   - 「Toggle text edit mode」をクリックしてRaw Query Modeに切り替え
-   - 以下のクエリを入力（**重要: カンマの後にスペースを入れない**）：
-   ```sql
-   SELECT longitude,latitude,level,speed 
-   FROM network_measurements 
-   WHERE time > now() - 24h
-   ```
+   Raw Query Modeでは構文エラーが発生する場合があるため、Query Builderの使用を強く推奨します：
    
-   ※ `operator_name`や`network_tech`も表示したい場合は、以下のクエリを使用：
-   ```sql
-   SELECT longitude,latitude,level,speed,operator_name,network_tech 
-   FROM network_measurements 
-   WHERE time > now() - 24h
-   ```
+   1. クエリエディタで「Query Builder」モードになっていることを確認
+   2. **FROM**: `network_measurements` を選択
+   3. **SELECT**: 「+ Query」ボタンをクリックして以下のフィールドを個別に追加
+      - `field(longitude)` 
+      - `field(latitude)`
+      - `field(level)` 
+      - `field(speed)`
+   4. **GROUP BY**: 設定不要（空のまま）
+   5. **WHERE**: 時間フィルターは自動的に適用されます
    
-   **方法2: Query Builder（推奨・初心者向け）**
-   - FROM: `network_measurements` を選択
-   - SELECT: 以下のフィールドを追加（基本セット）
-     - `field(longitude)`
-     - `field(latitude)` 
-     - `field(level)`
-     - `field(speed)`
-   - WHERE: 時間範囲は自動的に適用される
-   - タグ情報（operator_name, network_tech）も必要な場合は追加で選択
+   **追加情報が必要な場合:**
+   - オペレーター情報: `operator_name` (tag)
+   - 通信技術: `network_tech` (tag)
+   
+   **注意:** 
+   - Raw Query Modeは避けてください（構文エラーの原因）
+   - Query Builderなら確実に動作します
 
 5. 「Query Options」で「Format as」を「Table」に設定
 6. パネル設定で以下を調整：
@@ -340,7 +334,7 @@ curl -X POST -H "Content-Type: application/json" -d '{
   "basicAuth": false
 }' http://admin:admin@localhost:3000/api/datasources
 
-# 基本的な地図ダッシュボードを作成
+# 基本的な地図ダッシュボードを作成（Query Builder形式）
 curl -X POST -H "Content-Type: application/json" -d '{
   "dashboard": {
     "title": "Network Measurements Map",
@@ -348,8 +342,16 @@ curl -X POST -H "Content-Type: application/json" -d '{
       "title": "Signal Strength Map",
       "type": "geomap",
       "targets": [{
-        "query": "SELECT longitude,latitude,level,speed FROM network_measurements WHERE time > now() - 24h",
-        "rawQuery": true,
+        "measurement": "network_measurements",
+        "select": [
+          [{"type": "field", "params": ["longitude"]}],
+          [{"type": "field", "params": ["latitude"]}],
+          [{"type": "field", "params": ["level"]}],
+          [{"type": "field", "params": ["speed"]}]
+        ],
+        "groupBy": [],
+        "where": [],
+        "rawQuery": false,
         "resultFormat": "table"
       }]
     }]
@@ -375,22 +377,25 @@ curl -X POST -H "Content-Type: application/json" -d '{
 
 #### クエリエラー「invalid statement: ,」が発生する場合
 
-このエラーはInfluxDBクエリの構文に関する問題です：
+このエラーはRaw Query ModeでInfluxDBクエリを手動入力した際に発生します：
 
-**❌ 間違った構文（エラーになる）:**
+**🚫 問題のある方法: Raw Query Mode**
 ```sql
 SELECT longitude, latitude, level, speed FROM network_measurements
-```
-
-**✅ 正しい構文（動作する）:**
-```sql
+-- または
 SELECT longitude,latitude,level,speed FROM network_measurements
 ```
 
-**重要なポイント:**
-- カンマ（`,`）の後にスペースを入れないこと
-- Grafana のInfluxDBクエリエディタでは特殊な構文制限があります
-- Query Builder使用時はこの問題は発生しません
+**✅ 推奨解決方法: Query Builder を使用**
+
+1. クエリエディタで「Query Builder」モードを選択
+2. Raw Query Mode（テキスト入力）は使用しない
+3. GUIでフィールドを選択する方式で設定
+
+**Query Builder の利点:**
+- 構文エラーが発生しない
+- Grafanaが自動的に正しいクエリを生成
+- InfluxDBのバージョンや設定の違いに影響されない
 
 #### その他の一般的な問題
 
