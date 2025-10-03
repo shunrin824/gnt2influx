@@ -245,9 +245,7 @@ impl InfluxClient {
             "Attempting to write {} records to InfluxDB 1.x...",
             records.len()
         );
-        debug!(
-            "Writing to measurement 'network_measurements' in database '{database}'"
-        );
+        debug!("Writing to measurement 'network_measurements' in database '{database}'");
 
         match client.query(write_queries).await {
             Ok(_) => {
@@ -351,9 +349,7 @@ impl InfluxClient {
             "Attempting to write {} records to InfluxDB 2.x...",
             records.len()
         );
-        debug!(
-            "Writing to measurement 'network_measurements' in bucket '{bucket}'"
-        );
+        debug!("Writing to measurement 'network_measurements' in bucket '{bucket}'");
 
         match client.write(bucket, stream::iter(data_points)).await {
             Ok(_) => {
