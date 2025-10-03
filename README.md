@@ -221,13 +221,31 @@ gnt2influxで収集したネットワーク測定データをGrafanaで地図上
 
 #### 1. InfluxDBとGrafanaを起動
 
+**InfluxDB 1.x を使用する場合:**
 ```bash
 # InfluxDB 1.8を起動
 docker run -d --name influxdb \
   -p 8086:8086 \
   -e INFLUXDB_DB=gnettrack \
   influxdb:1.8
+```
 
+**InfluxDB 2.x を使用する場合:**
+```bash
+# InfluxDB 2.x を起動
+docker run -d --name influxdb2 \
+  -p 8086:8086 \
+  -e DOCKER_INFLUXDB_INIT_MODE=setup \
+  -e DOCKER_INFLUXDB_INIT_USERNAME=admin \
+  -e DOCKER_INFLUXDB_INIT_PASSWORD=password123 \
+  -e DOCKER_INFLUXDB_INIT_ORG=my-org \
+  -e DOCKER_INFLUXDB_INIT_BUCKET=gnettrack \
+  -e DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=my-super-secret-auth-token \
+  influxdb:2.7
+```
+
+**共通: Grafanaを起動**
+```bash
 # Grafanaを起動
 docker run -d --name grafana \
   -p 3000:3000 \
@@ -252,11 +270,21 @@ docker run -d --name grafana \
 4. 「Add data source」をクリック
 5. 「InfluxDB」を選択
 6. 以下の設定を入力：
-   - **Name**: InfluxDB
+
+   **InfluxDB 1.x (InfluxQL)の場合:**
+   - **Query Language**: InfluxQL
    - **URL**: http://host.docker.internal:8086
    - **Database**: gnettrack
    - **User**: （空白）
    - **Password**: （空白）
+
+   **InfluxDB 2.x (Flux)の場合:**
+   - **Query Language**: Flux
+   - **URL**: http://host.docker.internal:8086
+   - **Organization**: your_org_name
+   - **Token**: your_api_token
+   - **Default Bucket**: gnettrack
+
 7. 「Save & Test」をクリックして接続を確認
 
 #### 4. 地図ダッシュボードを作成
@@ -264,27 +292,44 @@ docker run -d --name grafana \
 1. 左メニューの「+」→「Dashboard」を選択
 2. 「Add panel」をクリック
 3. パネルタイプを「Geomap」に変更
-4. **Query Builder を使用（推奨）**:
+4. **クエリの設定**:
+
+   **InfluxDB 1.x (InfluxQL) を使用している場合:**
    
-   Raw Query Modeでは構文エラーが発生する場合があるため、Query Builderの使用を強く推奨します：
+   Query Builderを使用（推奨）：
+   1. **FROM**: `network_measurements` を選択
+   2. **SELECT**: 以下のフィールドを追加
+      - `field(longitude)`, `field(latitude)`, `field(level)`, `field(speed)`
+   3. **WHERE**: 時間フィルターは自動的に適用
    
-   1. クエリエディタで「Query Builder」モードになっていることを確認
-   2. **FROM**: `network_measurements` を選択
-   3. **SELECT**: 「+ Query」ボタンをクリックして以下のフィールドを個別に追加
-      - `field(longitude)` 
-      - `field(latitude)`
-      - `field(level)` 
-      - `field(speed)`
-   4. **GROUP BY**: 設定不要（空のまま）
-   5. **WHERE**: 時間フィルターは自動的に適用されます
+   **InfluxDB 2.x (Flux) を使用している場合:**
    
-   **追加情報が必要な場合:**
-   - オペレーター情報: `operator_name` (tag)
-   - 通信技術: `network_tech` (tag)
+   Raw Query Modeで以下のFluxクエリを入力：
+   ```flux
+   from(bucket: "gnettrack")
+     |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+     |> filter(fn: (r) => r._measurement == "network_measurements")
+     |> filter(fn: (r) => r._field == "longitude" or r._field == "latitude" or r._field == "level" or r._field == "speed")
+     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+   ```
    
-   **注意:** 
-   - Raw Query Modeは避けてください（構文エラーの原因）
-   - Query Builderなら確実に動作します
+   **追加でオペレーター情報も含める場合（Flux）:**
+   ```flux
+   from(bucket: "gnettrack")
+     |> range(start: v.timeRangeStart, stop: v.timeRangeStop)
+     |> filter(fn: (r) => r._measurement == "network_measurements")
+     |> filter(fn: (r) => r._field == "longitude" or r._field == "latitude" or r._field == "level" or r._field == "speed")
+     |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+     |> map(fn: (r) => ({
+         _time: r._time,
+         longitude: r.longitude,
+         latitude: r.latitude,
+         level: r.level,
+         speed: r.speed,
+         operator_name: r.operator_name,
+         network_tech: r.network_tech
+       }))
+   ```
 
 5. 「Query Options」で「Format as」を「Table」に設定
 6. パネル設定で以下を調整：
@@ -322,36 +367,48 @@ docker run -d --name grafana \
 手動設定が面倒な場合は、以下のAPIコマンドで自動設定できます：
 
 ```bash
-# データソースを自動設定
+# InfluxDB 1.x (InfluxQL) データソースを自動設定
 curl -X POST -H "Content-Type: application/json" -d '{
-  "name": "InfluxDB",
+  "name": "InfluxDB-InfluxQL",
   "type": "influxdb",
   "url": "http://host.docker.internal:8086",
   "access": "proxy",
   "database": "gnettrack",
   "user": "",
   "password": "",
-  "basicAuth": false
+  "basicAuth": false,
+  "jsonData": {
+    "defaultBucket": "gnettrack"
+  }
 }' http://admin:admin@localhost:3000/api/datasources
 
-# 基本的な地図ダッシュボードを作成（Query Builder形式）
+# InfluxDB 2.x (Flux) データソースを自動設定
+curl -X POST -H "Content-Type: application/json" -d '{
+  "name": "InfluxDB-Flux",
+  "type": "influxdb",
+  "url": "http://host.docker.internal:8086",
+  "access": "proxy",
+  "basicAuth": false,
+  "jsonData": {
+    "version": "Flux",
+    "organization": "your_org_name",
+    "defaultBucket": "gnettrack"
+  },
+  "secureJsonData": {
+    "token": "your_api_token"
+  }
+}' http://admin:admin@localhost:3000/api/datasources
+
+# Flux用地図ダッシュボードを作成
 curl -X POST -H "Content-Type: application/json" -d '{
   "dashboard": {
-    "title": "Network Measurements Map",
+    "title": "Network Measurements Map (Flux)",
     "panels": [{
       "title": "Signal Strength Map",
       "type": "geomap",
       "targets": [{
-        "measurement": "network_measurements",
-        "select": [
-          [{"type": "field", "params": ["longitude"]}],
-          [{"type": "field", "params": ["latitude"]}],
-          [{"type": "field", "params": ["level"]}],
-          [{"type": "field", "params": ["speed"]}]
-        ],
-        "groupBy": [],
-        "where": [],
-        "rawQuery": false,
+        "query": "from(bucket: \"gnettrack\")\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"network_measurements\")\n  |> filter(fn: (r) => r._field == \"longitude\" or r._field == \"latitude\" or r._field == \"level\" or r._field == \"speed\")\n  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")",
+        "rawQuery": true,
         "resultFormat": "table"
       }]
     }]
@@ -375,27 +432,33 @@ curl -X POST -H "Content-Type: application/json" -d '{
 
 ### トラブルシューティング
 
-#### クエリエラー「invalid statement: ,」が発生する場合
+#### クエリエラーが発生する場合
 
-このエラーはRaw Query ModeでInfluxDBクエリを手動入力した際に発生します：
+**InfluxQL (InfluxDB 1.x) でのエラー:**
 
-**🚫 問題のある方法: Raw Query Mode**
-```sql
-SELECT longitude, latitude, level, speed FROM network_measurements
--- または
-SELECT longitude,latitude,level,speed FROM network_measurements
-```
+エラー「invalid statement: ,」が発生する場合：
+- Query Builder を使用してください（Raw Query Mode は避ける）
+- GUIでフィールドを選択する方式が確実です
 
-**✅ 推奨解決方法: Query Builder を使用**
+**Flux (InfluxDB 2.x) でのエラー:**
 
-1. クエリエディタで「Query Builder」モードを選択
-2. Raw Query Mode（テキスト入力）は使用しない
-3. GUIでフィールドを選択する方式で設定
+Fluxクエリでエラーが発生する場合：
+1. **データソース設定を確認**:
+   - Query Language が「Flux」になっているか
+   - Organization、Token、Default Bucket が正しく設定されているか
 
-**Query Builder の利点:**
-- 構文エラーが発生しない
-- Grafanaが自動的に正しいクエリを生成
-- InfluxDBのバージョンや設定の違いに影響されない
+2. **基本的なFluxクエリでテスト**:
+   ```flux
+   from(bucket: "gnettrack")
+     |> range(start: -24h)
+     |> filter(fn: (r) => r._measurement == "network_measurements")
+     |> limit(n: 10)
+   ```
+
+3. **よくあるFluxエラー**:
+   - `bucket not found`: バケット名が間違っている
+   - `unauthorized`: トークンまたは権限の問題
+   - `syntax error`: Fluxクエリの構文ミス
 
 #### その他の一般的な問題
 
