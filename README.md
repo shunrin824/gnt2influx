@@ -213,6 +213,142 @@ MIT License
 
 Issue報告やプルリクエストを歓迎します。
 
+## Grafanaでのデータ可視化
+
+gnt2influxで収集したネットワーク測定データをGrafanaで地図上に可視化できます。
+
+### Grafanaセットアップ（Docker使用）
+
+#### 1. InfluxDBとGrafanaを起動
+
+```bash
+# InfluxDB 1.8を起動
+docker run -d --name influxdb \
+  -p 8086:8086 \
+  -e INFLUXDB_DB=gnettrack \
+  influxdb:1.8
+
+# Grafanaを起動
+docker run -d --name grafana \
+  -p 3000:3000 \
+  grafana/grafana:latest
+```
+
+#### 2. データをInfluxDBにアップロード
+
+```bash
+# KMLファイルをアップロード
+./gnt2influx -i your_data.kml
+
+# または詳細ログ付きでアップロード
+./gnt2influx -i your_data.kml -v
+```
+
+#### 3. Grafanaでデータソースを設定
+
+1. ブラウザで http://localhost:3000 にアクセス
+2. admin/admin でログイン（初回時はパスワード変更を要求される場合があります）
+3. 左メニューの「Configuration」→「Data Sources」を選択
+4. 「Add data source」をクリック
+5. 「InfluxDB」を選択
+6. 以下の設定を入力：
+   - **Name**: InfluxDB
+   - **URL**: http://host.docker.internal:8086
+   - **Database**: gnettrack
+   - **User**: （空白）
+   - **Password**: （空白）
+7. 「Save & Test」をクリックして接続を確認
+
+#### 4. 地図ダッシュボードを作成
+
+1. 左メニューの「+」→「Dashboard」を選択
+2. 「Add panel」をクリック
+3. パネルタイプを「Geomap」に変更
+4. クエリエディタで以下のクエリを入力：
+   ```sql
+   SELECT "longitude", "latitude", "level", "speed", "operator_name", "network_tech" 
+   FROM "network_measurements" 
+   WHERE $timeFilter
+   ```
+5. 「Query Options」で「Format as」を「Table」に設定
+6. パネル設定で以下を調整：
+   - **View**: 地図の中心座標（例：lat=35.7, lon=139.52）
+   - **Zoom**: 適切なズームレベル（例：16）
+   - **Layers**: データポイントの表示設定
+
+#### 5. 信号強度による色分け設定
+
+1. 「Field」タブを選択
+2. 「Thresholds」で信号レベルに応じた色分けを設定：
+   - 赤: -∞ to -110 dBm（弱い信号）
+   - 黄: -110 to -95 dBm（中程度の信号）
+   - 緑: -95 to +∞ dBm（強い信号）
+
+#### 6. ダッシュボードの保存
+
+1. 右上の「Save」ボタンをクリック
+2. ダッシュボード名を入力（例：「Network Measurements Map」）
+3. 「Save」をクリック
+
+### 地図で確認できる情報
+
+作成したダッシュボードでは以下の情報が地図上で確認できます：
+
+- **測定ポイントの位置**: 経度・緯度による正確な位置
+- **信号強度**: 色分けによる電波強度の視覚化
+- **移動速度**: 各測定ポイントでの移動速度
+- **通信事業者**: オペレーター名（KDDI、ドコモ等）
+- **ネットワーク技術**: 3G、4G、5G等の技術情報
+- **時系列変化**: タイムラインでの信号変化の追跡
+
+### 自動設定スクリプト（オプション）
+
+手動設定が面倒な場合は、以下のAPIコマンドで自動設定できます：
+
+```bash
+# データソースを自動設定
+curl -X POST -H "Content-Type: application/json" -d '{
+  "name": "InfluxDB",
+  "type": "influxdb",
+  "url": "http://host.docker.internal:8086",
+  "access": "proxy",
+  "database": "gnettrack",
+  "user": "",
+  "password": "",
+  "basicAuth": false
+}' http://admin:admin@localhost:3000/api/datasources
+
+# 基本的な地図ダッシュボードを作成
+curl -X POST -H "Content-Type: application/json" -d '{
+  "dashboard": {
+    "title": "Network Measurements Map",
+    "panels": [{
+      "title": "Signal Strength Map",
+      "type": "geomap",
+      "targets": [{
+        "query": "SELECT \"longitude\", \"latitude\", \"level\", \"speed\", \"operator_name\", \"network_tech\" FROM \"network_measurements\" WHERE $timeFilter",
+        "rawQuery": true,
+        "resultFormat": "table"
+      }]
+    }]
+  }
+}' http://admin:admin@localhost:3000/api/dashboards/db
+```
+
+### 高度な可視化設定
+
+#### ヒートマップ表示
+信号強度をヒートマップで表示する場合：
+1. パネルタイプを「Heatmap」に変更
+2. X軸：longitude、Y軸：latitude
+3. 値：level（信号レベル）
+
+#### 時系列アニメーション
+移動経路をアニメーションで表示する場合：
+1. 「Time range」を調整して特定時間範囲を選択
+2. 「Refresh」を短い間隔（5秒など）に設定
+3. Grafanaの「Playlist」機能で自動更新
+
 ## 開発
 
 ### InfluxDBの起動方法
