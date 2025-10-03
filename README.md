@@ -268,16 +268,16 @@ docker run -d --name grafana \
    
    **方法1: Raw Query Mode（上級者向け）**
    - 「Toggle text edit mode」をクリックしてRaw Query Modeに切り替え
-   - 以下のクエリを入力：
+   - 以下のクエリを入力（**重要: カンマの後にスペースを入れない**）：
    ```sql
-   SELECT longitude, latitude, level, speed 
+   SELECT longitude,latitude,level,speed 
    FROM network_measurements 
    WHERE time > now() - 24h
    ```
    
-   ※ `operator_name`や`network_tech`も表示したい場合は、別途以下のクエリを使用：
+   ※ `operator_name`や`network_tech`も表示したい場合は、以下のクエリを使用：
    ```sql
-   SELECT longitude, latitude, level, speed, operator_name, network_tech 
+   SELECT longitude,latitude,level,speed,operator_name,network_tech 
    FROM network_measurements 
    WHERE time > now() - 24h
    ```
@@ -348,7 +348,7 @@ curl -X POST -H "Content-Type: application/json" -d '{
       "title": "Signal Strength Map",
       "type": "geomap",
       "targets": [{
-        "query": "SELECT longitude, latitude, level, speed FROM network_measurements WHERE time > now() - 24h",
+        "query": "SELECT longitude,latitude,level,speed FROM network_measurements WHERE time > now() - 24h",
         "rawQuery": true,
         "resultFormat": "table"
       }]
@@ -370,6 +370,41 @@ curl -X POST -H "Content-Type: application/json" -d '{
 1. 「Time range」を調整して特定時間範囲を選択
 2. 「Refresh」を短い間隔（5秒など）に設定
 3. Grafanaの「Playlist」機能で自動更新
+
+### トラブルシューティング
+
+#### クエリエラー「invalid statement: ,」が発生する場合
+
+このエラーはInfluxDBクエリの構文に関する問題です：
+
+**❌ 間違った構文（エラーになる）:**
+```sql
+SELECT longitude, latitude, level, speed FROM network_measurements
+```
+
+**✅ 正しい構文（動作する）:**
+```sql
+SELECT longitude,latitude,level,speed FROM network_measurements
+```
+
+**重要なポイント:**
+- カンマ（`,`）の後にスペースを入れないこと
+- Grafana のInfluxDBクエリエディタでは特殊な構文制限があります
+- Query Builder使用時はこの問題は発生しません
+
+#### その他の一般的な問題
+
+1. **データソース接続エラー**
+   - InfluxDBのURLが正しいか確認（Docker使用時は`http://host.docker.internal:8086`）
+   - データベース名が正しいか確認（`gnettrack`）
+
+2. **データが表示されない**
+   - 時間範囲を確認（`WHERE time > now() - 24h`を`WHERE time > now() - 7d`に変更してテスト）
+   - データが正常にInfluxDBにアップロードされているか確認
+
+3. **地図が表示されない**
+   - パネルタイプが「Geomap」になっているか確認
+   - `longitude`と`latitude`フィールドが含まれているか確認
 
 ## 開発
 
