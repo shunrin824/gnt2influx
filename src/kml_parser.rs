@@ -37,13 +37,13 @@ impl KmlParser {
                         current_placemark = PlacemarkData::new();
                     }
                     b"Data" => {
-                        if in_placemark {
-                            if let Ok(Some(name_attr)) = e.try_get_attribute("name") {
-                                let name_str = String::from_utf8_lossy(&name_attr.value);
-                                let mut data_buf = Vec::new();
-                                let value = self.read_data_value(&mut reader, &mut data_buf)?;
-                                current_placemark.add_data(name_str.as_ref(), &value);
-                            }
+                        if in_placemark
+                            && let Ok(Some(name_attr)) = e.try_get_attribute("name")
+                        {
+                            let name_str = String::from_utf8_lossy(&name_attr.value);
+                            let mut data_buf = Vec::new();
+                            let value = self.read_data_value(&mut reader, &mut data_buf)?;
+                            current_placemark.add_data(name_str.as_ref(), &value);
                         }
                     }
                     b"coordinates" => {
@@ -64,9 +64,9 @@ impl KmlParser {
                             Err(e) => {
                                 error_count += 1;
                                 if self.skip_invalid {
-                                    warn!("Skipping invalid placemark: {}", e);
+                                    warn!("Skipping invalid placemark: {e}");
                                 } else {
-                                    return Err(anyhow!("Error parsing placemark: {}", e));
+                                    return Err(anyhow!("Error parsing placemark: {e}"));
                                 }
                             }
                         }
@@ -77,9 +77,9 @@ impl KmlParser {
                 Err(e) => {
                     error_count += 1;
                     if self.skip_invalid {
-                        warn!("XML parsing error: {}", e);
+                        warn!("XML parsing error: {e}");
                     } else {
-                        return Err(anyhow!("XML parsing error: {}", e));
+                        return Err(anyhow!("XML parsing error: {e}"));
                     }
                 }
                 _ => {}
@@ -88,7 +88,7 @@ impl KmlParser {
         }
 
         if error_count > 0 {
-            warn!("Encountered {} errors while parsing KML file", error_count);
+            warn!("Encountered {error_count} errors while parsing KML file");
         }
 
         debug!("Parsed {} placemarks from KML file", records.len());
@@ -111,7 +111,7 @@ impl KmlParser {
                     return Ok(String::new());
                 }
                 Ok(Event::Eof) => return Ok(String::new()),
-                Err(e) => return Err(anyhow!("Error reading data value: {}", e)),
+                Err(e) => return Err(anyhow!("Error reading data value: {e}")),
                 _ => {}
             }
         }
@@ -131,7 +131,7 @@ impl KmlParser {
                 }
                 Ok(Event::End(_)) => break,
                 Ok(Event::Eof) => break,
-                Err(e) => return Err(anyhow!("Error reading text content: {}", e)),
+                Err(e) => return Err(anyhow!("Error reading text content: {e}")),
                 _ => {}
             }
         }
@@ -162,7 +162,7 @@ impl PlacemarkData {
             "高度" => self.altitude = Some(value.to_string()),
             "時間" => self.time = Some(value.to_string()),
             _ => {
-                debug!("Unknown KML data field: {}", name);
+                debug!("Unknown KML data field: {name}");
             }
         }
     }
@@ -266,5 +266,5 @@ fn parse_kml_timestamp(time_str: &str) -> Result<DateTime<Utc>> {
         }
     }
 
-    Err(anyhow!("Unable to parse KML timestamp: {}", time_str))
+    Err(anyhow!("Unable to parse KML timestamp: {time_str}"))
 }
